@@ -32,7 +32,7 @@ If you find any issues or errors, feel free to report them or contribute with im
 
 If you would like to contribute:
 
-## Fork the repository.
+Fork the repository.
 
 Make your modifications and improvements.
 
