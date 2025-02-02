@@ -1,0 +1,173 @@
+#include <MKL25Z4.h>
+#include <stdio.h>
+#include <math.h>
+
+// defining
+void Delay(volatile unsigned int time_del);
+void SysTick_Handler();
+void DF_stay_loop(uint32_t time);
+void Set_RGB();
+void RGB_Led(uint32_t red,uint8_t green);
+void Red_Green_switches();
+void fourB_switch();
+void PORTA_IRQHandler();
+void Led_4B();
+int Digit_to_led();
+void PORTD_IRQHandler(void);
+
+
+// variables for leds and switches
+#define Red_pin   18   
+#define Green_pin 19   
+
+#define Switch_1 12
+#define Switch_2 4
+#define Switch_3 4
+
+#define Led_1 11
+#define Led_2 10
+#define Led_3 6
+#define Led_4 5
+
+// other varibles to control functions etc.
+int B1 = 0; // button 1
+int B2 = 0; // button 2
+volatile uint8_t DF = 0b0000; // flag for delay , it is volatile in order to make it easier rise-fall edge
+uint8_t Reg_Four_bit_Number = 0b0000; // 4 digit number to control 4 led in one step ago
+uint8_t Four_bit_Number = 0b0000; // 4 digit number to control 4 led in now
+
+
+
+
+void Delay(volatile unsigned int time_del) { // delay for the error at 4_led switch (the cable is making no contact and increse more than 1)
+  while (time_del--) 
+		{
+  }
+}
+
+void SysTick_Handler() { // ISR OF sys
+    DF = 1; // in order to create delay, for stay delay loop
+}
+
+void DF_stay_loop(uint32_t time) { // delay ISR
+    DF = 0;
+	
+    SysTick->LOAD = (SystemCoreClock / 1000) * time - 1; // formula
+    SysTick->VAL = 0;
+    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk | SysTick_CTRL_TICKINT_Msk;
+
+    while (!DF) {  // is is stays here until DF = 1
+		}
+
+    SysTick->CTRL = 0;
+}
+
+
+
+void Set_RGB(){ // set rgb 
+    SIM->SCGC5 |= SIM_SCGC5_PORTB_MASK | SIM_SCGC5_PORTD_MASK; // connect clck
+    PORTB->PCR[Red_pin] |= PORT_PCR_MUX(1);
+    PORTB->PCR[Green_pin] |= PORT_PCR_MUX(1);
+    PTB->PDDR |= (1 << Red_pin) | (1 << Green_pin);
+}
+
+
+void RGB_Led(uint32_t red,uint8_t green){ // control the rgb on board
+
+	if(red){ // red open, green off
+	PTB->PCOR = (1 << Red_pin);
+	PTB->PSOR = (1 << Green_pin);
+	}else if(green){// green open, red off
+	PTB->PCOR = (1 << Green_pin);
+	PTB->PSOR = (1 << Red_pin);
+	}else{ // off
+	PTB->PSOR = (1 << Green_pin);
+	PTB->PSOR = (1 << Red_pin);
+	}
+}
+
+
+void Red_Green_switches(){ // set the switch as a intrupt 
+	SIM->SCGC5 |= SIM_SCGC5_PORTA_MASK;
+	PORTA->PCR[Switch_1] = PORT_PCR_MUX(1) | PORT_PCR_PE_MASK | PORT_PCR_PS_MASK;
+	PORTA->PCR[Switch_2] = PORT_PCR_MUX(1) | PORT_PCR_PE_MASK | PORT_PCR_PS_MASK;
+	// falling_edge
+  PORTA->PCR[Switch_1] |= PORT_PCR_IRQC(10);
+	PORTA->PCR[Switch_2] |= PORT_PCR_IRQC(10);  
+	NVIC_SetPriority(PORTA_IRQn, 128); // make priority less 
+  NVIC_EnableIRQ(PORTA_IRQn);
+}
+
+
+void fourB_switch(){ //control 4 led with switch 3 
+
+    SIM->SCGC5 |= SIM_SCGC5_PORTD_MASK; // intrupt
+    PORTD->PCR[Switch_3] = PORT_PCR_MUX(1) | PORT_PCR_PE_MASK | PORT_PCR_PS_MASK;
+    PORTD->PCR[Switch_3] |= PORT_PCR_IRQC(10); 
+		NVIC_SetPriority(PORTD_IRQn, 64); // priority ismore than RGB led on board
+    NVIC_EnableIRQ(PORTD_IRQn);
+}
+
+
+void PORTA_IRQHandler() { //ISR of port A 
+		if (PORTA->ISFR & (1 << Switch_1)) { // control rgb mod with B1 and B2
+			B1 = 1;
+			PORTA->ISFR |= (1 << Switch_1);
+		}
+    if (PORTA->ISFR & (1 << Switch_2)) { // control rgb mod with B1 and B2
+			B2 = 1;
+		PORTA->ISFR |= (1 << Switch_2);
+		}
+
+}
+
+
+void Led_4B() { //make 4 led as outptut
+    SIM->SCGC5 |= SIM_SCGC5_PORTC_MASK;
+		
+    PORTC->PCR[Led_1] = PORT_PCR_MUX(1); 
+		PORTC->PCR[Led_2] = PORT_PCR_MUX(1);
+		PORTC->PCR[Led_3] = PORT_PCR_MUX(1);
+		PORTC->PCR[Led_4] = PORT_PCR_MUX(1);
+	
+	
+    PTC->PDDR |= (1 << Led_1);  // data direction for led 1  make it output
+		PTC->PDDR |= (1 << Led_2);  // data direction for led 2  make it output
+		PTC->PDDR |= (1 << Led_3);  // data direction for led 3  make it output
+		PTC->PDDR |= (1 << Led_4);  // data direction for led 4  make it output
+	
+
+	
+    PTC->PCOR = (1 << Led_1);  // make it low 
+		PTC->PCOR = (1 << Led_2);  // make it low 
+		PTC->PCOR = (1 << Led_3);  // make it low 
+		PTC->PCOR = (1 << Led_4);	 // make it low 
+}
+
+
+int Digit_to_led(){ //control the 4 led
+
+	
+if ((Reg_Four_bit_Number & 0b0001) != (Four_bit_Number & 0b0001)){ // control the first digit of 4 led
+			PTC->PTOR = (1 << Led_1);
+		}
+			if ( (Reg_Four_bit_Number & 0b0010) != (Four_bit_Number & 0b0010)){// control the second digit of 4 led
+			PTC->PTOR = (1 << Led_2);
+		}
+			if ( (Reg_Four_bit_Number & 0b0100) != (Four_bit_Number & 0b0100)){// control the third digit of 4 led
+			PTC->PTOR = (1 << Led_3);
+			}
+				if ( (Reg_Four_bit_Number & 0b1000) != (Four_bit_Number & 0b1000)){// control the fourth digit of 4 led
+			PTC->PTOR = (1 << Led_4);
+				}
+}
+
+
+
+void PORTD_IRQHandler(void){ // IRS portd
+		Reg_Four_bit_Number = Four_bit_Number; // hold old value
+		Four_bit_Number++; // increase 4 digit number 
+		Digit_to_led();
+		Delay(400000); // in order to get rid off 4 led switch connectness
+    PORTD->ISFR |= (1 << Switch_3);
+}

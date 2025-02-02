@@ -1,0 +1,77 @@
+#include <MKL25Z4.h>
+#include <stdio.h>
+#include <math.h>
+#include "utils.h"
+int foo(int a, int b);
+
+
+int mod = 2;
+int main(void){
+
+	LCD_init();
+	keypad_init();
+
+	
+	int p = 59;
+	int q = 61;
+	
+	print_fnc("Choose a mod:");
+	LCD_command(0xC0);
+	print_fnc("A= enc , D= dec ");
+
+	int a;
+	a = get_number_from_keypad();
+	clear_lcd();
+	
+
+if (a == 17){
+	print_fnc("Mod encrypt:");
+mod = 1;
+}
+	
+if ( a == 20){
+	print_fnc("Mod decrypt:");
+mod = 0;
+}
+
+if((mod != 0)&&(mod != 1)){
+clear_lcd();
+print_fnc("Wrong Key");
+}else{
+	
+LCD_command(0xC0);
+long value = get_number_from_keypad();
+long value1, value2;
+clear_lcd();
+
+
+
+value2 = value % 10000;
+value1 = (value - value2)/10000;
+
+long first = general(p,q,mod,value1);
+long second = general(p,q,mod,value2);
+
+char str1[16] ="                ";
+char str2[16] ="                ";
+
+sprintf(str1, "%ld", first);
+sprintf(str2, "%ld", second);
+
+if (mod ==1){
+LCD_command(0x80);
+	print_fnc("Encrypted code:");
+}else if(mod ==0){
+	print_fnc("Decrypted code:");
+}
+
+LCD_command(0xC0);
+print_fnc(str1);
+print_fnc(str2);
+
+
+}
+
+	
+}
+

@@ -1,0 +1,46 @@
+org 0
+
+MOV R1, #02H ; high part of divend
+MOV R0, #55H ; low part of divend
+
+MOV R2, #0fH ; divisor
+
+;R4 High part of quotient
+;R3 low part of quotient
+;R5 remainder
+MOV 17H,56H
+	CLR C
+	MOV A,R1
+	MOV B,R2
+	DIV AB
+	MOV R4,A
+	MOV R7,B
+	INC R7
+	MOV R6, #00H
+	MOV A,R0
+	SJMP ROBN
+
+ROBN2:	ADDC A,#0FFH
+ROBN:   CLR C
+	SUBB A,R2
+	INC R6
+	JNC ROBN
+	DJNZ R7,ROBN2
+
+	ADD A,R2
+	MOV R5,A
+	DEC R6
+	MOV A,R6
+	MOV R3,A
+
+
+
+
+
+
+
+
+HERE: SJMP HERE
+
+
+END
